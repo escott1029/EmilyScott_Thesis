@@ -1,0 +1,254 @@
+CellProfiler Pipeline: http://www.cellprofiler.org
+Version:5
+DateRevision:428
+GitHash:
+ModuleCount:16
+HasImagePlaneDetails:False
+
+Images:[module_num:1|svn_version:'Unknown'|variable_revision_number:2|show_window:True|notes:['To begin creating your project, use the Images module to compile a list of files and/or folders that you want to analyze. You can also specify a set of rules to include only the desired files in your selected folders.']|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    :
+    Filter images?:Images only
+    Select the rule criteria:and (extension does isimage) (directory doesnot containregexp "[\\\\/]\\.")
+
+Metadata:[module_num:2|svn_version:'Unknown'|variable_revision_number:6|show_window:True|notes:['The Metadata module optionally allows you to extract information describing your images (i.e, metadata) which will be stored along with your measurements. This information can be contained in the file name and/or location, or in an external file.']|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Extract metadata?:No
+    Metadata data type:Text
+    Metadata types:{}
+    Extraction method count:1
+    Metadata extraction method:Extract from file/folder names
+    Metadata source:File name
+    Regular expression to extract from file name:^(?P<Plate>.*)_(?P<Well>[A-P][0-9]{2})_s(?P<Site>[0-9])_w(?P<ChannelNumber>[0-9])
+    Regular expression to extract from folder name:(?P<Date>[0-9]{4}_[0-9]{2}_[0-9]{2})$
+    Extract metadata from:All images
+    Select the filtering criteria:and (file does contain "")
+    Metadata file location:Elsewhere...|
+    Match file and image metadata:[]
+    Use case insensitive matching?:No
+    Metadata file name:None
+    Does cached metadata exist?:No
+
+NamesAndTypes:[module_num:3|svn_version:'Unknown'|variable_revision_number:8|show_window:True|notes:['The NamesAndTypes module allows you to assign a meaningful name to each image by which other modules will refer to it.']|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Assign a name to:Images matching rules
+    Select the image type:Grayscale image
+    Name to assign these images:DNA
+    Match metadata:[]
+    Image set matching method:Order
+    Set intensity range from:Image metadata
+    Assignments count:3
+    Single images count:0
+    Maximum intensity:255.0
+    Process as 3D?:No
+    Relative pixel spacing in X:1.0
+    Relative pixel spacing in Y:1.0
+    Relative pixel spacing in Z:1.0
+    Select the rule criteria:or (file does contain "_C")
+    Name to assign these images:Golgi
+    Name to assign these objects:Cell
+    Select the image type:Grayscale image
+    Set intensity range from:Image metadata
+    Maximum intensity:255.0
+    Select the rule criteria:or (file does contain "_M")
+    Name to assign these images:CellMask
+    Name to assign these objects:Nucleus
+    Select the image type:Grayscale image
+    Set intensity range from:Image metadata
+    Maximum intensity:255.0
+    Select the rule criteria:and (file does contain "Y")
+    Name to assign these images:Nucleus
+    Name to assign these objects:Cytoplasm
+    Select the image type:Grayscale image
+    Set intensity range from:Image metadata
+    Maximum intensity:255.0
+
+Groups:[module_num:4|svn_version:'Unknown'|variable_revision_number:2|show_window:True|notes:['The Groups module optionally allows you to split your list of images into image subsets (groups) which will be processed independently of each other. Examples of groupings include screening batches, microtiter plates, time-lapse movies, etc.']|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Do you want to group your images?:No
+    grouping metadata count:1
+    Metadata category:None
+
+EnhanceOrSuppressFeatures:[module_num:5|svn_version:'Unknown'|variable_revision_number:7|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select the input image:Golgi
+    Name the output image:EnhanceOrSuppressFeatures_Golgi
+    Select the operation:Enhance
+    Feature size:50
+    Feature type:Speckles
+    Range of hole sizes:1,10
+    Smoothing scale:2.0
+    Shear angle:0.0
+    Decay:0.95
+    Enhancement method:Tubeness
+    Speed and accuracy:Slow
+    Rescale result image:No
+
+EnhanceOrSuppressFeatures:[module_num:6|svn_version:'Unknown'|variable_revision_number:7|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select the input image:CellMask
+    Name the output image:EnhanceOrSuppressFeatures_CM
+    Select the operation:Enhance
+    Feature size:50
+    Feature type:Speckles
+    Range of hole sizes:1,10
+    Smoothing scale:2.0
+    Shear angle:0.0
+    Decay:0.95
+    Enhancement method:Tubeness
+    Speed and accuracy:Slow
+    Rescale result image:No
+
+RunCellpose:[module_num:7|svn_version:'Unknown'|variable_revision_number:6|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select the input image:EnhanceOrSuppressFeatures_CM
+    Rescale images before running Cellpose:Yes
+    Run CellPose in docker or local python environment:Python
+    Select Cellpose docker image:cellprofiler/runcellpose_with_pretrained:2.3.2
+    Expected object diameter:200
+    Detection mode:cyto
+    Name the output object:RunCellpose
+    Use GPU:No
+    Use averaging:No
+    Supply nuclei image as well?:Yes
+    Select the nuclei image:Nucleus
+    Save probability image?:No
+    Name the probability image:Probabilities
+    Location of the pre-trained model file:Elsewhere...|
+    Pre-trained model file name:cyto_0
+    Flow threshold:0.6
+    Cell probability threshold:-0.1
+    GPU memory share for each worker:0.1
+    Stitch Threshold:0.0
+    Use 3D:No
+    Minimum size:5
+    Use Omnipose for mask reconstruction:Yes
+    Invert images:No
+    Remove objects that are touching the edge?:No
+    Rescale probability map?:Yes
+
+IdentifyPrimaryObjects:[module_num:8|svn_version:'Unknown'|variable_revision_number:15|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select the input image:Golgi
+    Name the primary objects to be identified:IdentifyGolgi
+    Typical diameter of objects, in pixel units (Min,Max):3,100
+    Discard objects outside the diameter range?:No
+    Discard objects touching the border of the image?:No
+    Method to distinguish clumped objects:Intensity
+    Method to draw dividing lines between clumped objects:Intensity
+    Size of smoothing filter:10
+    Suppress local maxima that are closer than this minimum allowed distance:7.0
+    Speed up by using lower-resolution image to find local maxima?:Yes
+    Fill holes in identified objects?:Never
+    Automatically calculate size of smoothing filter for declumping?:Yes
+    Automatically calculate minimum allowed distance between local maxima?:Yes
+    Handling of objects if excessive number of objects identified:Continue
+    Maximum number of objects:500
+    Use advanced settings?:Yes
+    Threshold setting version:12
+    Threshold strategy:Global
+    Thresholding method:Minimum Cross-Entropy
+    Threshold smoothing scale:1.3488
+    Threshold correction factor:1
+    Lower and upper bounds on threshold:0.0004,1.0
+    Manual threshold:0.0
+    Select the measurement to threshold with:None
+    Two-class or three-class thresholding?:Two classes
+    Log transform before thresholding?:No
+    Assign pixels in the middle intensity class to the foreground or the background?:Foreground
+    Size of adaptive window:500
+    Lower outlier fraction:0.05
+    Upper outlier fraction:0.05
+    Averaging method:Mean
+    Variance method:Standard deviation
+    # of deviations:2.0
+    Thresholding method:Minimum Cross-Entropy
+
+RelateObjects:[module_num:9|svn_version:'Unknown'|variable_revision_number:5|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Parent objects:RunCellpose
+    Child objects:IdentifyGolgi
+    Calculate child-parent distances?:None
+    Calculate per-parent means for all child measurements?:No
+    Calculate distances to other parents?:No
+    Do you want to save the children with parents as a new object set?:No
+    Name the output object:RelateObjects_IdentifyGolgi_RunCellpose
+    Parent name:None
+
+SplitOrMergeObjects:[module_num:10|svn_version:'Unknown'|variable_revision_number:6|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select the input objects:IdentifyGolgi
+    Name the new objects:golgi_convex_hull
+    Operation:Merge
+    Maximum distance within which to merge objects:0
+    Merge using a grayscale image?:No
+    Select the grayscale image to guide merging:None
+    Minimum intensity fraction:0.9
+    Method to find object intensity:Closest point
+    Merging method:Distance
+    Select the parent object:IdentifyCellMask
+    Output object type:Convex hull
+
+RelateObjects:[module_num:11|svn_version:'Unknown'|variable_revision_number:5|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Parent objects:RunCellpose
+    Child objects:golgi_convex_hull
+    Calculate child-parent distances?:None
+    Calculate per-parent means for all child measurements?:No
+    Calculate distances to other parents?:No
+    Do you want to save the children with parents as a new object set?:No
+    Name the output object:RelateObjects_ConvexHull_RunCellpose
+    Parent name:None
+
+SplitOrMergeObjects:[module_num:12|svn_version:'Unknown'|variable_revision_number:6|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select the input objects:IdentifyGolgi
+    Name the new objects:Mega_Hull_Golgi
+    Operation:Merge
+    Maximum distance within which to merge objects:0
+    Merge using a grayscale image?:No
+    Select the grayscale image to guide merging:None
+    Minimum intensity fraction:0.9
+    Method to find object intensity:Closest point
+    Merging method:Per-parent
+    Select the parent object:RunCellpose
+    Output object type:Convex hull
+
+RelateObjects:[module_num:13|svn_version:'Unknown'|variable_revision_number:5|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Parent objects:RunCellpose
+    Child objects:Mega_Hull_Golgi
+    Calculate child-parent distances?:None
+    Calculate per-parent means for all child measurements?:No
+    Calculate distances to other parents?:No
+    Do you want to save the children with parents as a new object set?:No
+    Name the output object:RelateObjects_Mega_Hull_Golgi_RunCellpose
+    Parent name:None
+
+OverlayOutlines:[module_num:14|svn_version:'Unknown'|variable_revision_number:4|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Display outlines on a blank image?:Yes
+    Select image on which to display outlines:None
+    Name the output image:Outlines
+    Outline display mode:Color
+    Select method to determine brightness of outlines:Max of image
+    How to outline:Thick
+    Select outline color:#C600F5
+    Select objects to display:RunCellpose
+    Select outline color:#00FBF2
+    Select objects to display:golgi_convex_hull
+
+MeasureObjectSizeShape:[module_num:15|svn_version:'Unknown'|variable_revision_number:3|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select object sets to measure:IdentifyGolgi, Mega_Hull_Golgi, RunCellpose, golgi_convex_hull
+    Calculate the Zernike features?:No
+    Calculate the advanced features?:Yes
+
+ExportToSpreadsheet:[module_num:16|svn_version:'Unknown'|variable_revision_number:13|show_window:False|notes:[]|batch_state:array([], dtype=uint8)|enabled:True|wants_pause:False]
+    Select the column delimiter:Comma (",")
+    Add image metadata columns to your object data file?:No
+    Add image file and folder names to your object data file?:No
+    Select the measurements to export:Yes
+    Calculate the per-image mean values for object measurements?:Yes
+    Calculate the per-image median values for object measurements?:Yes
+    Calculate the per-image standard deviation values for object measurements?:Yes
+    Output file location:Default Input Folder sub-folder|Documents/FINAL_RESULTS/U87/WT
+    Create a GenePattern GCT file?:No
+    Select source of sample row name:Metadata
+    Select the image to use as the identifier:None
+    Select the metadata to use as the identifier:None
+    Export all measurement types?:Yes
+    Press button to select measurements:golgi_convex_hull|AreaShape_NormalizedMoment_2_2,golgi_convex_hull|AreaShape_NormalizedMoment_2_3,golgi_convex_hull|AreaShape_NormalizedMoment_2_0,golgi_convex_hull|AreaShape_NormalizedMoment_2_1,golgi_convex_hull|AreaShape_NormalizedMoment_1_2,golgi_convex_hull|AreaShape_NormalizedMoment_1_1,golgi_convex_hull|AreaShape_NormalizedMoment_1_0,golgi_convex_hull|AreaShape_NormalizedMoment_1_3,golgi_convex_hull|AreaShape_NormalizedMoment_3_2,golgi_convex_hull|AreaShape_NormalizedMoment_3_1,golgi_convex_hull|AreaShape_NormalizedMoment_3_3,golgi_convex_hull|AreaShape_NormalizedMoment_3_0,golgi_convex_hull|AreaShape_NormalizedMoment_0_2,golgi_convex_hull|AreaShape_NormalizedMoment_0_3,golgi_convex_hull|AreaShape_NormalizedMoment_0_0,golgi_convex_hull|AreaShape_NormalizedMoment_0_1,golgi_convex_hull|AreaShape_InertiaTensor_0_0,golgi_convex_hull|AreaShape_InertiaTensor_0_1,golgi_convex_hull|AreaShape_InertiaTensor_1_0,golgi_convex_hull|AreaShape_InertiaTensor_1_1,golgi_convex_hull|AreaShape_MeanRadius,golgi_convex_hull|AreaShape_InertiaTensorEigenvalues_0,golgi_convex_hull|AreaShape_InertiaTensorEigenvalues_1,golgi_convex_hull|AreaShape_SpatialMoment_0_1,golgi_convex_hull|AreaShape_SpatialMoment_0_2,golgi_convex_hull|AreaShape_SpatialMoment_0_3,golgi_convex_hull|AreaShape_SpatialMoment_0_0,golgi_convex_hull|AreaShape_SpatialMoment_1_2,golgi_convex_hull|AreaShape_SpatialMoment_1_1,golgi_convex_hull|AreaShape_SpatialMoment_1_3,golgi_convex_hull|AreaShape_SpatialMoment_1_0,golgi_convex_hull|AreaShape_SpatialMoment_2_2,golgi_convex_hull|AreaShape_SpatialMoment_2_0,golgi_convex_hull|AreaShape_SpatialMoment_2_1,golgi_convex_hull|AreaShape_SpatialMoment_2_3,golgi_convex_hull|AreaShape_Eccentricity,golgi_convex_hull|AreaShape_CentralMoment_0_3,golgi_convex_hull|AreaShape_CentralMoment_0_1,golgi_convex_hull|AreaShape_CentralMoment_0_2,golgi_convex_hull|AreaShape_CentralMoment_0_0,golgi_convex_hull|AreaShape_CentralMoment_1_3,golgi_convex_hull|AreaShape_CentralMoment_1_0,golgi_convex_hull|AreaShape_CentralMoment_1_1,golgi_convex_hull|AreaShape_CentralMoment_1_2,golgi_convex_hull|AreaShape_CentralMoment_2_0,golgi_convex_hull|AreaShape_CentralMoment_2_3,golgi_convex_hull|AreaShape_CentralMoment_2_2,golgi_convex_hull|AreaShape_CentralMoment_2_1,golgi_convex_hull|AreaShape_MaximumRadius,golgi_convex_hull|AreaShape_EulerNumber,golgi_convex_hull|AreaShape_Orientation,golgi_convex_hull|AreaShape_BoundingBoxMinimum_Y,golgi_convex_hull|AreaShape_BoundingBoxMinimum_X,golgi_convex_hull|AreaShape_MajorAxisLength,golgi_convex_hull|AreaShape_BoundingBoxMaximum_X,golgi_convex_hull|AreaShape_BoundingBoxMaximum_Y,golgi_convex_hull|AreaShape_Compactness,golgi_convex_hull|AreaShape_HuMoment_0,golgi_convex_hull|AreaShape_HuMoment_4,golgi_convex_hull|AreaShape_HuMoment_5,golgi_convex_hull|AreaShape_HuMoment_3,golgi_convex_hull|AreaShape_HuMoment_6,golgi_convex_hull|AreaShape_HuMoment_1,golgi_convex_hull|AreaShape_HuMoment_2,golgi_convex_hull|AreaShape_FormFactor,golgi_convex_hull|AreaShape_Center_Y,golgi_convex_hull|AreaShape_Center_X,golgi_convex_hull|AreaShape_EquivalentDiameter,golgi_convex_hull|AreaShape_Solidity,golgi_convex_hull|AreaShape_MinFeretDiameter,golgi_convex_hull|AreaShape_Extent,golgi_convex_hull|AreaShape_Perimeter,golgi_convex_hull|AreaShape_ConvexArea,golgi_convex_hull|AreaShape_MaxFeretDiameter,golgi_convex_hull|AreaShape_MinorAxisLength,golgi_convex_hull|AreaShape_MedianRadius,golgi_convex_hull|AreaShape_BoundingBoxArea,golgi_convex_hull|AreaShape_Area,golgi_convex_hull|Parent_RunCellpose,golgi_convex_hull|Parent_IdentifyGolgi,golgi_convex_hull|Location_Center_X,golgi_convex_hull|Location_Center_Y,golgi_convex_hull|Number_Object_Number,RunCellpose|AreaShape_ConvexArea,RunCellpose|AreaShape_HuMoment_3,RunCellpose|AreaShape_HuMoment_6,RunCellpose|AreaShape_HuMoment_5,RunCellpose|AreaShape_HuMoment_0,RunCellpose|AreaShape_HuMoment_1,RunCellpose|AreaShape_HuMoment_2,RunCellpose|AreaShape_HuMoment_4,RunCellpose|AreaShape_InertiaTensor_1_0,RunCellpose|AreaShape_InertiaTensor_1_1,RunCellpose|AreaShape_InertiaTensor_0_1,RunCellpose|AreaShape_InertiaTensor_0_0,RunCellpose|AreaShape_CentralMoment_0_1,RunCellpose|AreaShape_CentralMoment_0_0,RunCellpose|AreaShape_CentralMoment_0_3,RunCellpose|AreaShape_CentralMoment_0_2,RunCellpose|AreaShape_CentralMoment_1_3,RunCellpose|AreaShape_CentralMoment_1_1,RunCellpose|AreaShape_CentralMoment_1_2,RunCellpose|AreaShape_CentralMoment_1_0,RunCellpose|AreaShape_CentralMoment_2_1,RunCellpose|AreaShape_CentralMoment_2_0,RunCellpose|AreaShape_CentralMoment_2_3,RunCellpose|AreaShape_CentralMoment_2_2,RunCellpose|AreaShape_Center_Y,RunCellpose|AreaShape_Center_X,RunCellpose|AreaShape_SpatialMoment_0_0,RunCellpose|AreaShape_SpatialMoment_0_3,RunCellpose|AreaShape_SpatialMoment_0_1,RunCellpose|AreaShape_SpatialMoment_0_2,RunCellpose|AreaShape_SpatialMoment_2_1,RunCellpose|AreaShape_SpatialMoment_2_2,RunCellpose|AreaShape_SpatialMoment_2_0,RunCellpose|AreaShape_SpatialMoment_2_3,RunCellpose|AreaShape_SpatialMoment_1_1,RunCellpose|AreaShape_SpatialMoment_1_0,RunCellpose|AreaShape_SpatialMoment_1_2,RunCellpose|AreaShape_SpatialMoment_1_3,RunCellpose|AreaShape_NormalizedMoment_0_3,RunCellpose|AreaShape_NormalizedMoment_0_1,RunCellpose|AreaShape_NormalizedMoment_0_0,RunCellpose|AreaShape_NormalizedMoment_0_2,RunCellpose|AreaShape_NormalizedMoment_3_3,RunCellpose|AreaShape_NormalizedMoment_3_2,RunCellpose|AreaShape_NormalizedMoment_3_1,RunCellpose|AreaShape_NormalizedMoment_3_0,RunCellpose|AreaShape_NormalizedMoment_1_1,RunCellpose|AreaShape_NormalizedMoment_1_2,RunCellpose|AreaShape_NormalizedMoment_1_0,RunCellpose|AreaShape_NormalizedMoment_1_3,RunCellpose|AreaShape_NormalizedMoment_2_2,RunCellpose|AreaShape_NormalizedMoment_2_1,RunCellpose|AreaShape_NormalizedMoment_2_3,RunCellpose|AreaShape_NormalizedMoment_2_0,RunCellpose|AreaShape_InertiaTensorEigenvalues_1,RunCellpose|AreaShape_InertiaTensorEigenvalues_0,RunCellpose|AreaShape_BoundingBoxArea,RunCellpose|AreaShape_BoundingBoxMinimum_Y,RunCellpose|AreaShape_BoundingBoxMinimum_X,RunCellpose|AreaShape_MedianRadius,RunCellpose|AreaShape_Area,RunCellpose|AreaShape_BoundingBoxMaximum_X,RunCellpose|AreaShape_BoundingBoxMaximum_Y,RunCellpose|AreaShape_Compactness,RunCellpose|AreaShape_EquivalentDiameter,RunCellpose|AreaShape_FormFactor,RunCellpose|AreaShape_MinFeretDiameter,RunCellpose|AreaShape_MeanRadius,RunCellpose|AreaShape_Eccentricity,RunCellpose|AreaShape_MaxFeretDiameter,RunCellpose|AreaShape_Orientation,RunCellpose|AreaShape_Extent,RunCellpose|AreaShape_MinorAxisLength,RunCellpose|AreaShape_MaximumRadius,RunCellpose|AreaShape_Perimeter,RunCellpose|AreaShape_MajorAxisLength,RunCellpose|AreaShape_EulerNumber,RunCellpose|AreaShape_Solidity,RunCellpose|Location_Center_Z,RunCellpose|Location_Center_X,RunCellpose|Location_Center_Y,RunCellpose|Number_Object_Number,RunCellpose|Children_IdentifyGolgi_Count,RunCellpose|Children_golgi_convex_hull_Count,RunCellpose|Children_Mega_Hull_Golgi_Count,Image|Height_CellMask,Image|Height_Nucleus,Image|Height_Golgi,Image|Width_Golgi,Image|Width_Nucleus,Image|Width_CellMask,Image|Frame_Nucleus,Image|Frame_CellMask,Image|Frame_Golgi,Image|URL_Golgi,Image|URL_CellMask,Image|URL_Nucleus,Image|ExecutionTime_05EnhanceOrSuppressFeatures,Image|ExecutionTime_13RelateObjects,Image|ExecutionTime_04Groups,Image|ExecutionTime_07RunCellpose,Image|ExecutionTime_14OverlayOutlines,Image|ExecutionTime_11RelateObjects,Image|ExecutionTime_01Images,Image|ExecutionTime_02Metadata,Image|ExecutionTime_09RelateObjects,Image|ExecutionTime_03NamesAndTypes,Image|ExecutionTime_10SplitOrMergeObjects,Image|ExecutionTime_12SplitOrMergeObjects,Image|ExecutionTime_06EnhanceOrSuppressFeatures,Image|ExecutionTime_15MeasureObjectSizeShape,Image|ExecutionTime_08IdentifyPrimaryObjects,Image|Series_Golgi,Image|Series_Nucleus,Image|Series_CellMask,Image|ModuleError_14OverlayOutlines,Image|ModuleError_03NamesAndTypes,Image|ModuleError_11RelateObjects,Image|ModuleError_08IdentifyPrimaryObjects,Image|ModuleError_07RunCellpose,Image|ModuleError_04Groups,Image|ModuleError_13RelateObjects,Image|ModuleError_01Images,Image|ModuleError_09RelateObjects,Image|ModuleError_10SplitOrMergeObjects,Image|ModuleError_12SplitOrMergeObjects,Image|ModuleError_05EnhanceOrSuppressFeatures,Image|ModuleError_15MeasureObjectSizeShape,Image|ModuleError_02Metadata,Image|ModuleError_06EnhanceOrSuppressFeatures,Image|FileName_Nucleus,Image|FileName_Golgi,Image|FileName_CellMask,Image|Group_Index,Image|Group_Number,Image|Group_Length,Image|PathName_Golgi,Image|PathName_CellMask,Image|PathName_Nucleus,Image|Threshold_FinalThreshold_IdentifyGolgi,Image|Threshold_SumOfEntropies_IdentifyGolgi,Image|Threshold_OrigThreshold_IdentifyGolgi,Image|Threshold_WeightedVariance_IdentifyGolgi,Image|Scaling_Nucleus,Image|Scaling_CellMask,Image|Scaling_Golgi,Image|MD5Digest_Golgi,Image|MD5Digest_CellMask,Image|MD5Digest_Nucleus,Image|Count_RunCellpose,Image|Count_IdentifyGolgi,Image|Count_golgi_convex_hull,Image|Count_Mega_Hull_Golgi,IdentifyGolgi|Parent_RunCellpose,IdentifyGolgi|Location_Center_Z,IdentifyGolgi|Location_Center_X,IdentifyGolgi|Location_Center_Y,IdentifyGolgi|Number_Object_Number,IdentifyGolgi|Children_golgi_convex_hull_Count,IdentifyGolgi|Children_Mega_Hull_Golgi_Count,Mega_Hull_Golgi|AreaShape_BoundingBoxMaximum_X,Mega_Hull_Golgi|AreaShape_BoundingBoxMaximum_Y,Mega_Hull_Golgi|AreaShape_NormalizedMoment_1_0,Mega_Hull_Golgi|AreaShape_NormalizedMoment_1_3,Mega_Hull_Golgi|AreaShape_NormalizedMoment_1_1,Mega_Hull_Golgi|AreaShape_NormalizedMoment_1_2,Mega_Hull_Golgi|AreaShape_NormalizedMoment_2_2,Mega_Hull_Golgi|AreaShape_NormalizedMoment_2_1,Mega_Hull_Golgi|AreaShape_NormalizedMoment_2_3,Mega_Hull_Golgi|AreaShape_NormalizedMoment_2_0,Mega_Hull_Golgi|AreaShape_NormalizedMoment_0_2,Mega_Hull_Golgi|AreaShape_NormalizedMoment_0_3,Mega_Hull_Golgi|AreaShape_NormalizedMoment_0_0,Mega_Hull_Golgi|AreaShape_NormalizedMoment_0_1,Mega_Hull_Golgi|AreaShape_NormalizedMoment_3_0,Mega_Hull_Golgi|AreaShape_NormalizedMoment_3_1,Mega_Hull_Golgi|AreaShape_NormalizedMoment_3_2,Mega_Hull_Golgi|AreaShape_NormalizedMoment_3_3,Mega_Hull_Golgi|AreaShape_SpatialMoment_2_3,Mega_Hull_Golgi|AreaShape_SpatialMoment_2_2,Mega_Hull_Golgi|AreaShape_SpatialMoment_2_1,Mega_Hull_Golgi|AreaShape_SpatialMoment_2_0,Mega_Hull_Golgi|AreaShape_SpatialMoment_1_1,Mega_Hull_Golgi|AreaShape_SpatialMoment_1_2,Mega_Hull_Golgi|AreaShape_SpatialMoment_1_0,Mega_Hull_Golgi|AreaShape_SpatialMoment_1_3,Mega_Hull_Golgi|AreaShape_SpatialMoment_0_2,Mega_Hull_Golgi|AreaShape_SpatialMoment_0_3,Mega_Hull_Golgi|AreaShape_SpatialMoment_0_0,Mega_Hull_Golgi|AreaShape_SpatialMoment_0_1,Mega_Hull_Golgi|AreaShape_MinorAxisLength,Mega_Hull_Golgi|AreaShape_CentralMoment_1_3,Mega_Hull_Golgi|AreaShape_CentralMoment_1_1,Mega_Hull_Golgi|AreaShape_CentralMoment_1_2,Mega_Hull_Golgi|AreaShape_CentralMoment_1_0,Mega_Hull_Golgi|AreaShape_CentralMoment_0_3,Mega_Hull_Golgi|AreaShape_CentralMoment_0_2,Mega_Hull_Golgi|AreaShape_CentralMoment_0_1,Mega_Hull_Golgi|AreaShape_CentralMoment_0_0,Mega_Hull_Golgi|AreaShape_CentralMoment_2_2,Mega_Hull_Golgi|AreaShape_CentralMoment_2_3,Mega_Hull_Golgi|AreaShape_CentralMoment_2_1,Mega_Hull_Golgi|AreaShape_CentralMoment_2_0,Mega_Hull_Golgi|AreaShape_InertiaTensor_0_1,Mega_Hull_Golgi|AreaShape_InertiaTensor_0_0,Mega_Hull_Golgi|AreaShape_InertiaTensor_1_1,Mega_Hull_Golgi|AreaShape_InertiaTensor_1_0,Mega_Hull_Golgi|AreaShape_Perimeter,Mega_Hull_Golgi|AreaShape_ConvexArea,Mega_Hull_Golgi|AreaShape_Area,Mega_Hull_Golgi|AreaShape_MeanRadius,Mega_Hull_Golgi|AreaShape_Eccentricity,Mega_Hull_Golgi|AreaShape_Orientation,Mega_Hull_Golgi|AreaShape_BoundingBoxMinimum_X,Mega_Hull_Golgi|AreaShape_BoundingBoxMinimum_Y,Mega_Hull_Golgi|AreaShape_Solidity,Mega_Hull_Golgi|AreaShape_EulerNumber,Mega_Hull_Golgi|AreaShape_HuMoment_0,Mega_Hull_Golgi|AreaShape_HuMoment_4,Mega_Hull_Golgi|AreaShape_HuMoment_5,Mega_Hull_Golgi|AreaShape_HuMoment_2,Mega_Hull_Golgi|AreaShape_HuMoment_1,Mega_Hull_Golgi|AreaShape_HuMoment_6,Mega_Hull_Golgi|AreaShape_HuMoment_3,Mega_Hull_Golgi|AreaShape_MaxFeretDiameter,Mega_Hull_Golgi|AreaShape_Center_Y,Mega_Hull_Golgi|AreaShape_Center_X,Mega_Hull_Golgi|AreaShape_BoundingBoxArea,Mega_Hull_Golgi|AreaShape_FormFactor,Mega_Hull_Golgi|AreaShape_MinFeretDiameter,Mega_Hull_Golgi|AreaShape_InertiaTensorEigenvalues_1,Mega_Hull_Golgi|AreaShape_InertiaTensorEigenvalues_0,Mega_Hull_Golgi|AreaShape_MajorAxisLength,Mega_Hull_Golgi|AreaShape_MaximumRadius,Mega_Hull_Golgi|AreaShape_MedianRadius,Mega_Hull_Golgi|AreaShape_EquivalentDiameter,Mega_Hull_Golgi|AreaShape_Extent,Mega_Hull_Golgi|AreaShape_Compactness,Mega_Hull_Golgi|Parent_RunCellpose,Mega_Hull_Golgi|Parent_IdentifyGolgi,Mega_Hull_Golgi|Location_Center_Y,Mega_Hull_Golgi|Location_Center_X,Mega_Hull_Golgi|Number_Object_Number,Experiment|CellProfiler_Version,Experiment|Run_Timestamp,Experiment|Modification_Timestamp,Experiment|Pipeline_Pipeline
+    Representation of Nan/Inf:NaN
+    Add a prefix to file names?:No
+    Filename prefix:MyExpt_
+    Overwrite existing files without warning?:No
+    Data to export:golgi_convex_hull
+    Combine these object measurements with those of the previous object?:No
+    File name:DATA.csv
+    Use the object name for the file name?:Yes
