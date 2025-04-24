@@ -1,0 +1,341 @@
+---
+title: "LCI KO Analysis"
+output: html_document
+author: Emily B. Scott
+date: "2025-04-25"
+---
+
+##Setup
+
+```{r packages}
+#loading libraries
+library(readr)
+library(readxl)
+library(readr)
+library(tidyverse)
+library(hrbrthemes)
+library(viridis)
+library(reshape2)
+library(ggpubr)
+library(ggplot2)
+library(dplyr)
+library(paletteer)
+```
+
+```{r loading files}
+setwd("~/Desktop/Results/LCI") #file path to treatment folder
+
+D <- read_csv("RunCellpose.csv") #Containing cell information
+I <- read_csv("IdentifyGolgi.csv") #Containing individual Golgi object information
+G <- read_csv("golgi_convex_hull.csv") #Containing Golgi convex hull information
+B <- read_csv("Mega_Hull_Golgi.csv") #containing a master hull of all golgi stuff inside the cell
+
+setwd("~/Desktop/Results/HeLa/WT")  #file path to WT folder
+
+#NB: it is important to keep track of which one is loaded first, as that will affect the indices of treatment vs WT
+
+D1 <- read_csv("RunCellpose.csv") #Containing cell information
+D1$ImageNumber = D1$ImageNumber + max(D$ImageNumber) #altering image number
+I1 <- read_csv("IdentifyGolgi.csv") #Containing individual Golgi object information
+I1$ImageNumber = I1$ImageNumber + max(I$ImageNumber) #altering image number
+G1 <- read_csv("golgi_convex_hull.csv") #Containing Golgi convex hull information
+G1$ImageNumber = G1$ImageNumber + max(G$ImageNumber) #altering image number
+B1 <- read_csv("Mega_Hull_Golgi.csv") #containing a master hull of all golgi stuff inside the cell
+B1$ImageNumber = B1$ImageNumber + max(B$ImageNumber) #altering image number
+
+#combining tables
+D=rbind(D,D1)
+I=rbind(I,I1)
+G=rbind(G,G1)
+B=rbind(B,B1)
+
+#if the files ever become too large, one can do this same process again with D2,I2, etc.
+
+#this will throw out a warning about the working directory, which can be ignored
+```
+
+```{r labeling}
+
+#this is where I keep track of all my image numbers. The numbers are assigned by CellProfiler in alphabetical order of file path. These will need to be assigned manually every time you change the images run in CellProfiler.
+
+#can check how many total images exist in the current spreadsheet by calling length(unique(G$ImageNumber)) in the console
+
+WT_HeLa = 5:27 #pulling in the WT from the other treatments so everything gets the same comparison
+
+exclude = 0  #a placeholder in case any images need to be temporarily excluded. If excluded for the long term, I recommend removing from the CellProfiler pipeline for simplicity. All R vectors start at index 1 so keeping exclude to 0 at default will do nothing.
+
+LCI= 1:4 #labeling LCI images
+
+#A more efficient form of a previous LabelFrames() function I made, this time for large datasets: LabelManyFrames
+
+LabelManyFrames <- function(G) { #takes in the data frame of interest. This "G" is generalized to any function
+  G <- G %>%
+    mutate(Label = case_when( #edit if adding/removing any treatments using the same basic structure
+      ImageNumber %in% WT_HeLa ~ "WT",
+      ImageNumber %in% LCI ~ "LCI KO",
+      ImageNumber %in% exclude ~ "exclude",
+      TRUE ~ NA_character_  # Assigns NA to unmatched cases
+    )) %>%
+    filter(Label != "exclude")  # Removes excluded rows
+
+  # Print error messages for unmatched cases
+  if (any(is.na(G$Label))) {
+    warning("Error: Some image numbers not found")
+  }
+
+  return(G)
+}
+
+
+#running the LabelManyFrames() function on our data frames and reassigning them for future use
+
+G = LabelManyFrames(G)
+D = LabelManyFrames(D)
+I = LabelManyFrames(I)
+B = LabelManyFrames(B)
+
+
+#establishing a significance reference for all graphs. Best to do it in this chunk so it doesn't have to be done every time a graph is generated
+
+symnum.args <- list(cutpoints = c(0, 0.0001, 0.001, 0.01, 0.05, Inf), symbols = c("****", "***", "**", "*", "ns"))
+
+#setting colors
+pal = "ggthemes::Classic_Green_Orange_6"
+
+#see https://pmassicotte.github.io/paletteer_gallery/
+
+pal <- c(unname(paletteer::paletteer_d("ggthemes::Classic_Green_Orange_6"))[5],"grey") # Adjust as needed. 5th color from the ggthemes Green_Orange_6 palette (for each of the four treatments) and then grey again for the WT. Order matters here!
+```
+
+##Distance
+
+```{r distance setup}
+
+# Function to calculate the diagonal distance between two points (just Pythagorean theorem)
+dist_func <- function(x1, y1, x2, y2) {
+  sqrt((x1 - x2)^2 + (y1 - y2)^2)
+}
+
+# Creating data frames for Golgi objects (from table I) and cell objects (from table D) with pairwise comparison
+
+identify_golgi_table <- I %>% #using pipeline function in R to select from table I
+  #select function to grab certain columns of interest. We want a column with a specific:
+  select(ImageNumber, #image number
+         golgi_ObjectNumber = ObjectNumber, #golgi ID
+         cell_ObjectNumber = Parent_RunCellpose, #cell ID
+         golgi_centerX = Location_Center_X,  #(x,y) of golgi center
+         golgi_centerY = Location_Center_Y, 
+         Label) #image label
+
+cell_table <- D %>% #same thing for cell table, without the golgi (x,y) coords
+  select(ImageNumber, 
+         cell_ObjectNumber = ObjectNumber,
+         cell_Area = AreaShape_Area, 
+         Label)
+
+# Merging tables together
+dist_table <- merge(cell_table, identify_golgi_table, by = c("ImageNumber", "cell_ObjectNumber", "Label"))
+
+
+# Initializing an empty list to store results
+result_list <- list()
+
+# Generating results using dplyr for efficiency
+
+dist_table %>% #starting with merged table
+  group_by(ImageNumber, cell_ObjectNumber) %>% #selects for each image and each cell in that image
+  filter(n() >= 2) %>% #makes sure that the number of rows in the current group is more than 2
+    #thus, the cell has to have at least 2 golgi objects (2 rows per cell) to run the dist function
+  do({ #applies the following code to each group from the group_by() function above
+    subset_df <- . #subset_df is set to the current group's data (this cell from this image)
+    n <- nrow(subset_df) #finds how many rows there are in this cell
+    indices <- combn(n, 2) #finds all possible two-item combinations of row numbers
+    
+    #indices generates a two row matrix where the first row is the first number and the second row is its pair, ie:
+    
+    # 1 1 1         
+    #                        Would give you (1,2),(1,3), and (1,4)
+    # 2 3 4
+    
+    
+    data.frame( #generates a new data frame to store the results. 
+      #This data frame contains:
+        #image number, cell ID, IDs of each of the two Golgi compared, and the distance between them
+      image = subset_df$ImageNumber[1], #image should be the same throughout subset_df
+      cell_id = subset_df$cell_ObjectNumber[1], #object should be the same throughout subset_df
+      golgi1_id = subset_df$golgi_ObjectNumber[indices[1, ]], #golgi1 is the first combn number
+      golgi2_id = subset_df$golgi_ObjectNumber[indices[2, ]], #golgi2 is the second combn number
+      distance = dist_func(subset_df$golgi_centerX[indices[1, ]], subset_df$golgi_centerY[indices[1, ]],
+                           subset_df$golgi_centerX[indices[2, ]], subset_df$golgi_centerY[indices[2, ]]), 
+      #closes out function call
+      area = subset_df$cell_Area[1], #should be the same throughout subset_df
+      Label = subset_df$Label[1] #should be the same throughout subset_df
+    ) #closes out data frame
+  }) %>% #closes do() function
+  bind_rows() -> result #adds subset_df to result list
+```
+
+```{r distance plotting}
+
+average_table = aggregate(distance ~ cell_id + image + area + Label, result, FUN=mean) #takes mean of all distances within each cell id (coming from result table created in the last graph)
+
+average_table=average_table[average_table$area >= 15,] #makes sure that the cells are bigger than 15 pixels, just to remove any small cells that aren't actually cells
+
+average_table$percell = average_table$distance/(sqrt(average_table$area)) #finds average distance as proportion of cell area
+
+average_table= average_table[average_table$percell <= 1,]  #makes sure that the average distance is not bigger than the cell (which shouldn't happen; just a check)
+
+ggplot(average_table, aes(x=as.factor(Label), y=percell, fill=as.factor(Label))) + #plotting
+  scale_fill_manual(values=pal) + #adds color 
+    geom_violin() + #makes violin
+    geom_boxplot(width=0.15, col= "black", fill=NA) + #makes boxplot
+ geom_jitter(shape = 1, color = "black", size = 0.5, alpha = 0.3, width = 0.2) +
+     #adds points for data distribution
+    theme_classic() + #gets rid of ugly background
+  labs(title = "", x="",
+       y = "Average Distance / Square Root of Cell Area") + #labels
+   theme(plot.title = element_text(size=11.5, hjust=0.5), legend.position="none",axis.text.x = element_text(size=20), axis.title = element_text(size = 15)) +  #changes font sizes
+    stat_compare_means(label = "p.signif", method = "t.test", #adds significance
+                     ref.group = "WT", size = 5)
+```
+
+##Area
+
+```{r area setup}
+golgi_table_area <- G %>% #using pipeline to select from table G (convex hull)
+  #select function to grab certain columns of interest
+  select(ImageNumber, #image number
+         golgi_hull_ObjectNumber = ObjectNumber, #golgi ID
+         golgi_ObjectNumber = Parent_IdentifyGolgi, #cell ID
+         golgi_hull_Area = AreaShape_Area, #convex hull area
+         Label) #image label
+
+newtable <- merge(golgi_table_area,identify_golgi_table,  by = c("ImageNumber", "golgi_ObjectNumber", "Label")) #merging golgi hull ID to golgi object ID so the golgi ID, cell ID, and convex hull area are all in the same place
+
+#if cell object number is 0, the Golgi hull exists outside the cell and is not counted
+
+cell_table_area <- D %>% #same thing for cell table
+  select(ImageNumber, 
+         cell_ObjectNumber = ObjectNumber,
+         cell_Area = AreaShape_Area, 
+         Label)
+
+area_table <- merge(newtable, cell_table_area,  by = c("ImageNumber", "cell_ObjectNumber", "Label")) #merging golgi object ID to cell parameters
+
+area_table$golgi_Area = area_table$golgi_hull_Area #renaming golgi_hull_area to golgi_Area
+
+area_table_max = aggregate(golgi_Area ~ cell_ObjectNumber + Label + ImageNumber + cell_Area,data=area_table, FUN="max") #finding max convex hull for each cell object
+
+```
+
+```{r max convex hull over total cell area}
+
+area_table_max$final_frac = area_table_max$golgi_Area/area_table_max$cell_Area #find what proportion of the cell area is taken up by each Golgi object
+area_table_max <- area_table_max %>% 
+  filter(golgi_Area < cell_Area) #making sure the cell area is bigger than the Golgi area (and also, by proxy, that the cell area is > 0)
+
+ggplot(area_table_max, aes(x=as.factor(Label), y=final_frac, fill=as.factor(Label))) + #plotting (see above comments on plotting)
+    geom_violin(aes(fill=as.factor(Label))) +
+  scale_fill_manual(values=pal) +
+    geom_boxplot(width=0.15, col= "black", fill=NA) + 
+  ylim(0,0.4) + 
+    geom_jitter(shape = 1, color = "black", size = 0.5, alpha = 0.3, width = 0.2) +
+    theme_classic() +
+    theme(plot.title = element_text(size=11),legend.position="none", axis.text.x = element_text(size=20), axis.title = element_text(size = 15)) +
+    labs(title = "",
+       x = "",
+       y = "Maximum Hull Area / Total Cell Area ",
+       fill = "Treatment Key") +
+    stat_compare_means(label = "p.signif", method = "t.test", ref.group = "WT", size=5)  
+```
+
+##Children
+
+```{r number of children}
+
+E <- D %>% filter(Children_golgi_convex_hull_Count != 0, ObjectNumber != 0)
+#removing rows where there are no golgi children. Redundantly double checking by making sure the object number for the cell is not 0
+
+ggplot(E, aes(x=as.factor(Label), y=Children_golgi_convex_hull_Count, fill=as.factor(Label))) +
+  scale_fill_manual(values=pal) +
+    geom_violin() +
+  geom_boxplot(width=0.15, col= "black", fill=NA) + 
+    geom_jitter(shape = 1, color = "black", size = 0.5, alpha = 0.3, width = 0.2) +
+    theme_classic() +
+    theme(plot.title = element_text(size=11), legend.position="none", axis.text.x = element_text(size=20), axis.title = element_text(size = 15)) +
+     labs(title = "",
+       x = "",
+       y = "Number of Golgi Objects Identified Per Cell", 
+       fill="Treatment Key") +
+  stat_compare_means(label = "p.signif", method = "t.test", ref.group = "WT", size=5) 
+
+```
+
+```{r number of golgi exceeding threshold}
+#not shown in thesis figures but a good control to ensure that the increase in fragmentation is population-level increase in the number of fragmented cells compared to an increase in the degree of fragmentation
+
+Counts <- E %>% #finding total number of Golgi convex hulls (such that one hull is ocunted as one child)
+  group_by(Label) %>%
+  summarize(
+    totals = n(),                # Total number of rows in each group
+    count = sum(Children_golgi_convex_hull_Count > 2),      # Sum of rows where value > 2
+    .groups = "drop"             # Ungroup after summarizing
+  )
+
+Counts <- Counts %>%
+  mutate(Total = count / totals)  # Calculate the ratio of cells with more than two children compared to total # children
+
+
+
+ggplot(Counts, aes(x = Label, y = Total, fill = Label)) +
+  geom_col() +  # Use summarized data for bars
+  scale_fill_manual(values =pal) +  # Replace "pal" with your desired palette
+  labs(
+    title = "",
+    x = "Category",
+    y = "Proportion (Count / Total)",
+    fill = "Treatment Key"
+  ) +
+  theme_classic()
+```
+
+##Mega Hull
+
+```{r mega hull setup}
+  big_hull <- B %>% #generating big hull table (big hull already generated in CellProfiler)
+    select(ImageNumber, Label,  #picks out specific golgi object number, its related cell and that cell's area
+           golgi_ObjectNumber = ObjectNumber, 
+           cell_ObjectNumber = Parent_RunCellpose,
+           golgi_Area = AreaShape_Area) %>% filter(golgi_Area >= 200) #filtering because there are some outliers where area is super tiny
+
+#nb that "golgi_Area" in this case is actually the mega hull area (not individual Golgi objects)
+
+  cell_table <- D %>% #same thing for cell table
+    select(ImageNumber, 
+         cell_ObjectNumber = ObjectNumber,
+         cell_Area = AreaShape_Area, 
+         Label)
+
+  big_table <- merge(cell_table, big_hull, by = c("ImageNumber", "cell_ObjectNumber", "Label")) #merge the cell areas and Golgi areas into one singular table
+
+```
+
+```{r mega hull / cell area}
+big_table$big_frac = big_table$golgi_Area/big_table$cell_Area #same idea as area code
+
+big_table = big_table[big_table$big_frac <= 1,] #filtering out any golgi mega hulls that are bigger than their cell
+
+ggplot(big_table, aes(x=as.factor(Label), y=big_frac, fill=as.factor(Label))) + #plotting
+    geom_violin() +
+    geom_boxplot(width=0.15, col= "black", fill=NA)+
+  geom_jitter(shape = 1, color = "black", size = 0.5, alpha = 0.3, width = 0.2) +
+  ylim(0,1) + 
+    theme_classic() +
+    theme(plot.title = element_text(size=11), legend.position="none",axis.text.x = element_text(size=20), axis.title = element_text(size = 15)) +
+    labs(title = "",
+       x = "",
+       y = "Mega Hull Area / Total Cell Area ",
+       fill = "Treatment Key") +
+  scale_fill_manual(values = pal) + 
+     stat_compare_means(label = "p.signif", method = "t.test", ref.group = "WT", size=5)  #adds color 
+```
